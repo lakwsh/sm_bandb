@@ -41,8 +41,10 @@ CREATE TABLE `banned_users` (
 建议配合[`l4dtoolz`](https://github.com/lakwsh/l4dtoolz)实现拦截家庭共享账号进服(仅限L4D2)
 
 ## 6. 常见问题
-`[SM] Unable to load extension "dbi.mysql.ext": libz.so.1: cannot open shared object file: No such file or directory`  
-解决方法: apt install lib32z1
+1. `[SM] Unable to load extension "dbi.mysql.ext": libz.so.1: cannot open shared object file: No such file or directory`  
+解决方法: apt install lib32z1  
+2. 修改完`databases.cfg`不生效  
+解决方法: `sm_reload_databases`或重启服务端
 
 ## 7. 关于数据库
 如使用远程数据库, 建议设置防火墙白名单, 并且设置专用用户(而非root)
