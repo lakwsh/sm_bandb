@@ -20,7 +20,7 @@ enum struct BanInfo {
 public Plugin myinfo = {
 	name = "[Any] Ban DB",
 	author = "lakwsh",
-	version = "1.0.0",
+	version = "1.0.1",
 	url = "https://github.com/lakwsh/sm_bandb"
 }
 
@@ -95,7 +95,7 @@ public Action OnBanClient(int client, int time, int flags, const char[] reason, 
 		g_init = false;
 		LogError("数据插入失败,无法封禁玩家: %s", auth);
 	}
-	CloseHandle(query);
+	delete query;
 	return Plugin_Handled;	// 阻止文件写入
 }
 
@@ -118,7 +118,7 @@ void LoadDatabase() {
 }
 
 bool IsPlayerBanned(const char[] id, char[] msg, int maxlen) {
-	if(!g_init) LoadDatabase();
+	if(!SQL_FastQuery(g_db, "SELECT 1 FROM `banned_users` LIMIT 1;")) LoadDatabase();
 	for(int i = 0; i < g_bannedList.Length; ++i) {
 		BanInfo info;
 		g_bannedList.GetArray(i, info);
@@ -168,6 +168,6 @@ bool IsPlayerBanned(const char[] id, char[] msg, int maxlen) {
 		strcopy(msg, maxlen, "数据库状态异常,仅限管理员进入");
 		LogError("数据查询失败,默认封禁状态: %s", id);
 	}
-	CloseHandle(query);
+	delete query;
 	return banned;
 }
