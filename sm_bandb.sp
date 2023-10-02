@@ -20,7 +20,7 @@ enum struct BanInfo {
 public Plugin myinfo = {
 	name = "[Any] Ban DB",
 	author = "lakwsh",
-	version = "1.0.2",
+	version = "1.0.3",
 	url = "https://github.com/lakwsh/sm_bandb"
 }
 
@@ -127,15 +127,13 @@ void LoadDatabase() {
 	g_db = SQL_ConnectCustom(kv, error, sizeof(error), true);
 	delete kv;
 */
-	if(g_db) {
-		g_init = g_db.SetCharset("utf8");
-		if(!g_init) PrintToServer("[BanDB] %s", error);
-		else PrintToServer("[BanDB] 数据库连接成功");
-	}
+	g_init = g_db && g_db.SetCharset("utf8");
+	if(!g_init) PrintToServer("[BanDB] %s", error);
+	else PrintToServer("[BanDB] 数据库连接成功");
 }
 
 bool IsPlayerBanned(const char[] id, char[] msg, int maxlen) {
-	if(!SQL_FastQuery(g_db, "SELECT 1 FROM `banned_users` LIMIT 1;")) LoadDatabase();
+	if(!g_init || !SQL_FastQuery(g_db, "SELECT 1 FROM `banned_users` LIMIT 1;")) LoadDatabase();
 	int iid = SteamidToInt(id);
 	for(int i = 0; i < g_bannedList.Length; ++i) {
 		BanInfo info;
