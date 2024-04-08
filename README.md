@@ -31,7 +31,7 @@ CREATE TABLE `banned_users` (
 `sm_debug`: 开启调试模式(踢出所有非管理员玩家)
 
 ## 4. 插件特性
-1. 带缓存功能: 数据库查询结果保存在本地5分钟  
+1. 带缓存功能: 数据库查询结果保存在本地2分钟  
 2. 双检测: 玩家进入连接服务器时首次检测, 玩家SteamID校验完毕后二次检测  
 3. 自动记录: 通过OnBanClient回调, 自动将新的封禁记录添加到数据库  
 4. 故障保护: 数据库不可用时仅允许管理员进入服务器  
@@ -44,7 +44,7 @@ CREATE TABLE `banned_users` (
 1. `[SM] Unable to load extension "dbi.mysql.ext": libz.so.1: cannot open shared object file: No such file or directory`  
 解决方法: apt install lib32z1  
 2. 修改完`databases.cfg`不生效  
-解决方法: `sm_reload_databases`或重启服务端
+解决方法: `sm_reload_databases`或重启服务端(插件也需要重新加载)
 
 ## 7. 关于数据库
 如使用远程数据库, 建议设置防火墙白名单, 并且设置专用用户(而非root)
