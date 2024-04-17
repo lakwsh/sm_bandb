@@ -115,7 +115,7 @@ void LoadDatabase() {
 	kv.SetString("database", "l4d2");
 	kv.SetString("user", "l4d2");
 	kv.SetString("pass", "123456");
-	kv.SetString("port", "3066");
+	kv.SetString("port", "3306");
 	g_db = SQL_ConnectCustom(kv, error, sizeof(error), true);
 	delete kv;
 */
@@ -125,7 +125,6 @@ void LoadDatabase() {
 }
 
 bool IsPlayerBanned(int client, char[] msg, int maxlen) {
-	if(!g_init || !SQL_FastQuery(g_db, "SELECT 1 FROM `banned_users` LIMIT 1;")) LoadDatabase();
 	int id = GetSteamAccountID(client, false);
 	for(int i = 0; i < g_bannedList.Length; ++i) {
 		BanInfo info;
@@ -147,6 +146,8 @@ bool IsPlayerBanned(int client, char[] msg, int maxlen) {
 		strcopy(msg, maxlen, "服务器处于调试模式,仅限管理员进入");
 		return true;
 	}
+
+	if(!g_init || !SQL_FastQuery(g_db, "SELECT 1 FROM `banned_users` LIMIT 1;")) LoadDatabase();
 	if(!g_init) {
 		if(!admin) {
 			strcopy(msg, maxlen, "数据库状态异常,仅限管理员进入");
