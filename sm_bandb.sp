@@ -14,7 +14,7 @@ bool g_debug = false, g_init = false;
 public Plugin myinfo = {
 	name = "[Any] Ban DB",
 	author = "lakwsh",
-	version = "1.0.4",
+	version = "1.0.5",
 	url = "https://github.com/lakwsh/sm_bandb"
 };
 
@@ -28,14 +28,15 @@ public void OnPluginStart() {
 	g_bannedList = new ArrayList(sizeof(BanInfo));
 	LoadDatabase();
 
-	RegAdminCmd("sm_debug", Command_Debug, ADMFLAG_KICK, "切换调试模式");
+	RegAdminCmd("sm_debug", Cmd_Debug, ADMFLAG_KICK, "切换调试模式");
+	RegAdminCmd("sm_bancheck", Cmd_BanCheck, ADMFLAG_KICK, "重新检查封禁状态");
 }
 
 public void OnPluginEnd() {
 	delete g_bannedList;
 }
 
-public Action Command_Debug(int client, int args) {
+public Action Cmd_Debug(int client, int args) {
 	if(!g_debug) {
 		g_debug = true;
 		int count = 0;
@@ -53,6 +54,17 @@ public Action Command_Debug(int client, int args) {
 		g_debug = false;
 		PrintToChatAll("\x04[提示]\x05服务器已退出调试模式.");
 		ReplyToCommand(client, "[DebugMode] 已退出调试模式.");
+	}
+	return Plugin_Handled;
+}
+
+public Action Cmd_BanCheck(int client, int args) {
+	char reason[MSG_SIZE];
+	for(int i = 1; i <= MaxClients; i++) {
+		if(isPlayer(i) && IsPlayerBanned(i, reason, sizeof(reason))) {
+			KickClient(i, "%s", reason);
+			ReplyToCommand(client, "已踢出: %N", i);
+		}
 	}
 	return Plugin_Handled;
 }
@@ -115,7 +127,7 @@ void LoadDatabase() {
 	kv.SetString("database", "l4d2");
 	kv.SetString("user", "l4d2");
 	kv.SetString("pass", "123456");
-	kv.SetString("port", "3306");
+	kv.SetString("port", "3066");
 	g_db = SQL_ConnectCustom(kv, error, sizeof(error), true);
 	delete kv;
 */
@@ -125,6 +137,7 @@ void LoadDatabase() {
 }
 
 bool IsPlayerBanned(int client, char[] msg, int maxlen) {
+	if(!g_init || !SQL_FastQuery(g_db, "SELECT 1 FROM `banned_users` LIMIT 1;")) LoadDatabase();
 	int id = GetSteamAccountID(client, false);
 	for(int i = 0; i < g_bannedList.Length; ++i) {
 		BanInfo info;
@@ -146,8 +159,6 @@ bool IsPlayerBanned(int client, char[] msg, int maxlen) {
 		strcopy(msg, maxlen, "服务器处于调试模式,仅限管理员进入");
 		return true;
 	}
-
-	if(!g_init || !SQL_FastQuery(g_db, "SELECT 1 FROM `banned_users` LIMIT 1;")) LoadDatabase();
 	if(!g_init) {
 		if(!admin) {
 			strcopy(msg, maxlen, "数据库状态异常,仅限管理员进入");
