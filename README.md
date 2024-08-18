@@ -43,9 +43,11 @@ CREATE TABLE `banned_users` (
 
 ## 6. 常见问题
 1. `[SM] Unable to load extension "dbi.mysql.ext": libz.so.1: cannot open shared object file: No such file or directory`  
-解决方法: apt install lib32z1  
+解: apt install lib32z1  
 2. 修改完`databases.cfg`不生效  
-解决方法: `sm_reload_databases`或重启服务端(插件也需要重新加载)
+解: `sm_reload_databases`或重启服务端(插件也需要重新加载)  
+3. mysql数据库连接数超过上限  
+解: `MySQL> set global max_connections=200;`
 
 ## 7. 关于数据库
 如使用远程数据库, 建议设置防火墙白名单, 并且设置专用用户(而非root)
