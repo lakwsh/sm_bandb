@@ -1,7 +1,7 @@
 #include <sourcemod>
 
-#define STEAMID_SIZE 21
-#define MSG_SIZE 128
+#define AUTHID_SIZE    21
+#define MSG_SIZE       128
 #define CACHE_DURATION 120
 
 #define isPlayer(%1) (IsClientInGame(%1) && !IsFakeClient(%1))
@@ -9,12 +9,12 @@
 
 Database g_db;
 ArrayList g_bannedList;
-bool g_debug = false, g_init = false;
+bool g_debug = false;
 
 public Plugin myinfo = {
 	name = "[Any] Ban DB",
 	author = "lakwsh",
-	version = "1.0.5",
+	version = "1.2.0",
 	url = "https://github.com/lakwsh/sm_bandb"
 };
 
@@ -26,7 +26,6 @@ enum struct BanInfo {
 
 public void OnPluginStart() {
 	g_bannedList = new ArrayList(sizeof(BanInfo));
-	LoadDatabase();
 
 	RegAdminCmd("sm_debug", Cmd_Debug, ADMFLAG_KICK, "切换调试模式");
 	RegAdminCmd("sm_bancheck", Cmd_BanCheck, ADMFLAG_KICK, "重新检查封禁状态");
@@ -37,11 +36,11 @@ public void OnPluginEnd() {
 }
 
 public Action Cmd_Debug(int client, int args) {
-	if(!g_debug) {
+	if (!g_debug) {
 		g_debug = true;
 		int count = 0;
-		for(int i = 1; i <= MaxClients; i++) {
-			if(isPlayer(i) && !isAdmin(i)) {
+		for (int i = 1; i <= MaxClients; i++) {
+			if (isPlayer(i) && !isAdmin(i)) {
 				KickClient(i, "服务器已进入调试模式,不便之处敬请谅解");
 				count++;
 			}
@@ -60,8 +59,8 @@ public Action Cmd_Debug(int client, int args) {
 
 public Action Cmd_BanCheck(int client, int args) {
 	char reason[MSG_SIZE];
-	for(int i = 1; i <= MaxClients; i++) {
-		if(isPlayer(i) && IsPlayerBanned(i, reason, sizeof(reason))) {
+	for (int i = 1; i <= MaxClients; i++) {
+		if (isPlayer(i) && IsPlayerBanned(i, reason, sizeof(reason))) {
 			KickClient(i, "%s", reason);
 			ReplyToCommand(client, "已踢出: %N", i);
 		}
@@ -70,43 +69,49 @@ public Action Cmd_BanCheck(int client, int args) {
 }
 
 public bool OnClientConnect(int client, char[] rejectmsg, int maxlen) {
-	if(IsFakeClient(client)) return true;
+	if (IsFakeClient(client)) return true;
+	for (int i = 0; i < g_bannedList.Length; ++i) {
+		BanInfo info;
+		g_bannedList.GetArray(i, info);
+		if (GetTime() > info.Expiration) {
+			g_bannedList.Erase(i--);
+			continue;
+		}
+		if (GetSteamAccountID(client, false) == info.SteamID) {
+			strcopy(rejectmsg, maxlen, info.Reason);
+			return false;
+		}
+	}
 	return !IsPlayerBanned(client, rejectmsg, maxlen);
-}
-
-public void OnClientAuthorized(int client, const char[] auth) {
-	if(IsFakeClient(client)) return;
-	char msg[MSG_SIZE];
-	if(IsPlayerBanned(client, msg, sizeof(msg))) KickClient(client, "%s", msg);
 }
 
 // BanClient的command参数不能为空
 public Action OnBanClient(int client, int time, int flags, const char[] reason, const char[] kick_message, const char[] command, any source) {
-	if(!g_init) LoadDatabase();
-	if(time) return Plugin_Continue;
+	if (time) return Plugin_Continue;
 	AddToCache(GetSteamAccountID(client, false), reason);
 
-	char auth[STEAMID_SIZE];
+	char auth[AUTHID_SIZE];
 	GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth));
-	if(!g_init) {
-		LogError("数据库连接错误,无法封禁玩家: %s", auth);
+
+	LoadDatabase();
+	if (g_db) {
+		LogError("数据库连接失败,无法封禁玩家: %s", auth);
 		return Plugin_Continue;
 	}
 	char error[MSG_SIZE];
-	DBStatement query = SQL_PrepareQuery(g_db, "INSERT INTO `banned_users` (`steamid`, `reason`,`time`) VALUES (?, ?, NOW())", error, sizeof(error));
-	if(!query) {
-		g_init = false;
-		LogError("无法创建预编译查询,无法封禁玩家: %s", auth);
-		return Plugin_Continue;
+	DBStatement query = SQL_PrepareQuery(g_db, "INSERT INTO `banned` (`auth`, `reason`) VALUES (?, ?)", error, sizeof(error));
+	if (query) {
+		query.BindString(0, auth, false);
+		query.BindString(1, reason, false);
+		SQL_LockDatabase(g_db);
+		bool ret = SQL_Execute(query);
+		SQL_UnlockDatabase(g_db);
+		delete query;
+		if (ret) return Plugin_Handled; // 阻止文件写入
+		SQL_GetError(g_db, error, sizeof(error));
 	}
-	query.BindString(0, auth, false);
-	query.BindString(1, reason, false);
-	if(!SQL_Execute(query)) {
-		g_init = false;
-		LogError("数据插入失败,无法封禁玩家: %s", auth);
-	}
-	delete query;
-	return Plugin_Handled;  // 阻止文件写入
+	LogError("数据库状态异常,无法封禁玩家: auth[%s] error[%s]", auth, error);
+	return Plugin_Continue;
 }
 
 void AddToCache(int id, const char[] reason) {
@@ -127,71 +132,45 @@ void LoadDatabase() {
 	kv.SetString("database", "l4d2");
 	kv.SetString("user", "l4d2");
 	kv.SetString("pass", "123456");
-	kv.SetString("port", "3066");
+	kv.SetString("port", "3306");
 	g_db = SQL_ConnectCustom(kv, error, sizeof(error), true);
 	delete kv;
 */
-	g_init = g_db && g_db.SetCharset("utf8");
-	if(!g_init) PrintToServer("[BanDB] %s", error);
-	else PrintToServer("[BanDB] 数据库连接成功");
+	if (!g_db || !g_db.SetCharset("utf8")) LogError("数据库状态异常: %s", error);
+}
+
+void OnPlayerBanned(Database db, DBResultSet results, const char[] error, any data) {
+	int client = GetClientOfUserId(data);
+	if (!client) return;
+	if (!results) {
+		KickClient(client, "数据库状态异常,禁止进入");
+		LogError("封禁数据查询失败: %s", error);
+		return;
+	}
+
+	if (!results.RowCount) return;
+	char reason[MSG_SIZE];
+	strcopy(reason, sizeof(reason), "你已被封禁");
+	if (results.FetchRow()) results.FetchString(0, reason, sizeof(reason));
+	AddToCache(GetSteamAccountID(client, false), reason);
+	KickClient(client, "%s", reason);
 }
 
 bool IsPlayerBanned(int client, char[] msg, int maxlen) {
-	if(!g_init || !SQL_FastQuery(g_db, "SELECT 1 FROM `banned_users` LIMIT 1;")) LoadDatabase();
-	int id = GetSteamAccountID(client, false);
-	for(int i = 0; i < g_bannedList.Length; ++i) {
-		BanInfo info;
-		g_bannedList.GetArray(i, info);
-		if(GetTime() > info.Expiration) {
-			g_bannedList.Erase(i--);
-			continue;
-		}
-		if(id == info.SteamID) {
-			strcopy(msg, maxlen, info.Reason);
-			return true;
-		}
-	}
-
-	char auth[STEAMID_SIZE];
+	char auth[AUTHID_SIZE];
 	GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth), false);
-	bool admin = GetAdminFlag(FindAdminByIdentity(AUTHMETHOD_STEAM, auth), Admin_Reservation);
-	if(g_debug && !admin) {
+	if (g_debug && !GetAdminFlag(FindAdminByIdentity(AUTHMETHOD_STEAM, auth), Admin_Reservation)) {
 		strcopy(msg, maxlen, "服务器处于调试模式,仅限管理员进入");
 		return true;
 	}
-	if(!g_init) {
-		if(!admin) {
-			strcopy(msg, maxlen, "数据库状态异常,仅限管理员进入");
-			return true;
-		}
-		return false;
-	}
 
-	char error[MSG_SIZE];
-	DBStatement query = SQL_PrepareQuery(g_db, "SELECT `reason` FROM `banned_users` WHERE `steamid` LIKE ?", error, sizeof(error));
-	if(!query) {
-		g_init = false;
-		LogError("无法创建预编译查询,非管理员默认封禁状态: %s", auth);
-		strcopy(msg, maxlen, "数据库状态异常,仅限管理员进入");
+	LoadDatabase();
+	if (!g_db) {
+		strcopy(msg, maxlen, "数据库状态异常,禁止进入");
 		return true;
 	}
-	auth[6] = '%';
-	auth[8] = '%';
-	query.BindString(0, auth, false);
-	bool banned = true;
-	if(SQL_Execute(query)) {
-		if(!SQL_GetRowCount(query)) {
-			banned = false;
-		} else {
-			strcopy(msg, maxlen, "你已被封禁");
-			if(SQL_FetchRow(query)) SQL_FetchString(query, 0, msg, maxlen);
-			AddToCache(id, msg);
-		}
-	} else {
-		g_init = false;
-		strcopy(msg, maxlen, "数据库状态异常,仅限管理员进入");
-		LogError("数据查询失败,默认封禁状态: %s", auth);
-	}
-	delete query;
-	return banned;
+	char sql[85+sizeof(auth)*2];
+	g_db.Format(sql, sizeof(sql), "SELECT CONCAT_WS('\n', `time`, `reason`) FROM `banned` WHERE `auth` LIKE '%%%s' LIMIT 1", auth[9]);
+	g_db.Query(OnPlayerBanned, sql, GetClientUserId(client), DBPrio_High);
+	return false;
 }

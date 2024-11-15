@@ -4,9 +4,9 @@
 	if($db->connect_errno) exit;
 	$db->set_charset('utf8');
 	$db->select_db('l4d2');
-	$res=$db->query('SELECT * FROM `banned_users`;');
+	$res=$db->query('SELECT * FROM `banned` ORDER BY `time` DESC;');
 	if($res){
-		print('<table border="1"><tr><th>ID</th><th>SteamID</th><th>Reason</th><th>Time</th></tr>');
+		print('<table border="1"><tr><th>SteamID</th><th>Reason</th><th>Time</th></tr>');
 		foreach($res->fetch_all() as $v){
 			print('<tr>');
 			foreach($v as $vv) print('<td>'.$vv.'</td>');

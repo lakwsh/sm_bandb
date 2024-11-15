@@ -1,5 +1,5 @@
 # sm_bandb
-轻量版SourceBans, 提供多服联封及调试模式  
+轻量版SourceBans, 提供多服联Ban及调试模式  
 多服联封: 多个服务端通过数据库方式共享封禁列表  
 调试模式: 开启后服务器仅限管理员进入
 
@@ -18,12 +18,11 @@
 
 ## 2. 创建数据库表
 ```
-CREATE TABLE `banned_users` (
-  `Id` int(11) NOT NULL AUTO_INCREMENT,
-  `steamid` varchar(21) NOT NULL UNIQUE,
-  `reason` varchar(255),
-  `time` datetime,
-  PRIMARY KEY (`Id`)
+CREATE TABLE `banned` (
+  `auth` char(21) NOT NULL DEFAULT '',
+  `reason` varchar(255) DEFAULT NULL,
+  `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`auth`)
 ) DEFAULT CHARSET=utf8;
 ```
 
@@ -32,11 +31,12 @@ CREATE TABLE `banned_users` (
 `sm_bancheck`: 检测服务器内是否有漏网之鱼(加入游戏后被封禁)
 
 ## 4. 插件特性
-1. 带缓存功能: 数据库查询结果保存在本地2分钟  
-2. 双检测: 玩家进入连接服务器时首次检测, 玩家SteamID校验完毕后二次检测  
-3. 自动记录: 通过OnBanClient回调, 自动将新的封禁记录添加到数据库  
-4. 故障保护: 数据库不可用时仅允许管理员进入服务器  
-5. 封禁提示: 被封禁玩家会看到自己被封禁的原因
+1. **缓存功能**: 被封禁玩家查询结果会在服务器缓存2分钟, 避免重复查询数据库  
+2. **快速检测**: 玩家连接服务器时检测封禁状态  
+3. **自动记录**: 通过OnBanClient回调, 自动将新的封禁记录添加到数据库(支持LAC等插件)  
+4. 故障保护: 数据库不可用时禁止进入服务器  
+5. 封禁提示: 被封禁玩家会看到自己被封禁的时间及原因
+6. **多线程查询**: 不阻塞游戏主线程, 减少玩家进入游戏等待时间
 
 ## 5. 相关推荐
 建议配合[`l4dtoolz`](https://github.com/lakwsh/l4dtoolz)实现拦截家庭共享账号进服(仅限L4D2)
