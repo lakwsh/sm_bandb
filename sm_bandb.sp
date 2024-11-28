@@ -14,7 +14,7 @@ bool g_debug = false;
 public Plugin myinfo = {
 	name = "[Any] Ban DB",
 	author = "lakwsh",
-	version = "1.2.0",
+	version = "1.2.1",
 	url = "https://github.com/lakwsh/sm_bandb"
 };
 
@@ -94,7 +94,7 @@ public Action OnBanClient(int client, int time, int flags, const char[] reason, 
 	GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth));
 
 	LoadDatabase();
-	if (g_db) {
+	if (!g_db) {
 		LogError("数据库连接失败,无法封禁玩家: %s", auth);
 		return Plugin_Continue;
 	}
@@ -169,7 +169,7 @@ bool IsPlayerBanned(int client, char[] msg, int maxlen) {
 		strcopy(msg, maxlen, "数据库状态异常,禁止进入");
 		return true;
 	}
-	char sql[85+sizeof(auth)*2];
+	char sql[86+sizeof(auth)*2];
 	g_db.Format(sql, sizeof(sql), "SELECT CONCAT_WS('\n', `time`, `reason`) FROM `banned` WHERE `auth` LIKE '%%%s' LIMIT 1", auth[9]);
 	g_db.Query(OnPlayerBanned, sql, GetClientUserId(client), DBPrio_High);
 	return false;
